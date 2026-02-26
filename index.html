@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SQL Script QA Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: #2c3e50;
+            color: white;
+            padding: 20px 30px;
+        }
+
+        .header h1 {
+            font-size: 24px;
+            margin-bottom: 5px;
+        }
+
+        .header p {
+            font-size: 14px;
+            color: #bdc3c7;
+        }
+
+        .input-section {
+            padding: 30px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .input-label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: block;
+            color: #2c3e50;
+        }
+
+        #sqlInput {
+            width: 100%;
+            height: 200px;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        #sqlInput:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .button-row {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 12px 30px;
+            background: #3498db;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #2980b9;
+        }
+
+        button:disabled {
+            background: #95a5a6;
+            cursor: not-allowed;
+        }
+
+        #clearBtn {
+            background: #95a5a6;
+        }
+
+        #clearBtn:hover {
+            background: #7f8c8d;
+        }
+
+        .loading {
+            display: none;
+            padding: 20px;
+            text-align: center;
+            color: #7f8c8d;
+        }
+
+        .loading.show {
+            display: block;
+        }
+
+        .results-section {
+            padding: 30px;
+            display: none;
+        }
+
+        .results-section.show {
+            display: block;
+        }
+
+        .error-message {
+            background: #e74c3c;
+            color: white;
+            padding: 15px 20px;
+            margin: 20px 30px;
+            border-radius: 4px;
+            display: none;
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .success-info {
+            background: #ecf0f1;
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .success-info span {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .table-comparison {
+            margin-bottom: 40px;
+        }
+
+        .table-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 3px solid #3498db;
+        }
+
+        .comparison-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            margin-top: 15px;
+        }
+
+        .before-after-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+            overflow-x: auto;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .section-header {
+            font-weight: 600;
+            margin-bottom: 15px;
+            padding: 10px 15px;
+            border-radius: 4px;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .before-header {
+            background: #3498db;
+            color: white;
+        }
+
+        .after-header {
+            background: #27ae60;
+            color: white;
+        }
+
+        .before-header::before {
+            content: "📋";
+        }
+
+        .after-header::before {
+            content: "✅";
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+            border-radius: 4px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .data-table {
+            width: 100%;
+            min-width: 800px;
+            border-collapse: collapse;
+            font-size: 12px;
+            background: white;
+        }
+
+        .data-table th {
+            background: #34495e;
+            color: white;
+            padding: 12px 10px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 11px;
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            border-right: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .data-table th:last-child {
+            border-right: none;
+        }
+
+        .data-table td {
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+            border-right: 1px solid #f0f0f0;
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .data-table td:last-child {
+            border-right: none;
+        }
+
+        .data-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* Cell highlighting */
+        .cell-unchanged {
+            background: #ffffff;
+        }
+
+        .cell-changed {
+            background: #fff3cd;
+            font-weight: 600;
+            color: #856404;
+        }
+
+        .row-added {
+            background: #d4edda;
+        }
+
+        .row-removed {
+            background: #f8d7da;
+        }
+
+        /* Override cell backgrounds for added/removed rows */
+        .row-added td {
+            background: #d4edda !important;
+            color: #155724;
+        }
+
+        .row-removed td {
+            background: #f8d7da !important;
+            color: #721c24;
+        }
+
+        /* Changed cells in added/removed rows should still show as changed */
+        .row-added td.cell-changed {
+            background: #c3e6cb !important;
+            color: #155724;
+            font-weight: 600;
+        }
+
+        .row-removed td.cell-changed {
+            background: #f5c6cb !important;
+            color: #721c24;
+            font-weight: 600;
+        }
+
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 3px;
+            border: 1px solid #ddd;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #7f8c8d;
+        }
+
+        .scroll-hint {
+            font-size: 11px;
+            color: #7f8c8d;
+            margin-top: 8px;
+            text-align: right;
+        }
+
+        .scroll-hint::before {
+            content: "↔️ ";
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 SQL Script QA Tool</h1>
+            <p>Execute SQL scripts safely with automatic rollback - Compare before/after table states</p>
+        </div>
+
+        <div class="input-section">
+            <label class="input-label" for="sqlInput">SQL Script:</label>
+            <textarea id="sqlInput" placeholder="Paste your SQL script here..."></textarea>
+            <div class="button-row">
+                <button id="analyzeBtn">Execute Script (Safe - Auto Rollback)</button>
+                <button id="clearBtn">Clear</button>
+            </div>
+        </div>
+
+        <div class="loading" id="loading">
+            <p>⏳ Executing script (within transaction)...</p>
+        </div>
+
+        <div class="error-message" id="errorMessage"></div>
+
+        <div class="results-section" id="results">
+            <div class="success-info">
+                <span>Execution Time:</span> <span id="executionTime">-</span> ms | <span style="color: #27ae60;">✓ Transaction Rolled Back</span>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #fff3cd;"></div>
+                    <span>Changed Value</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #d4edda;"></div>
+                    <span>Row Added</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #f8d7da;"></div>
+                    <span>Row Removed</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: #ffffff; border: 1px solid #ddd;"></div>
+                    <span>Unchanged</span>
+                </div>
+            </div>
+
+            <div id="comparisons"></div>
+        </div>
+    </div>
+
+    <script>
+        const sqlInput = document.getElementById('sqlInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const loading = document.getElementById('loading');
+        const errorMessage = document.getElementById('errorMessage');
+        const results = document.getElementById('results');
+        const comparisons = document.getElementById('comparisons');
+        const executionTime = document.getElementById('executionTime');
+
+        // API configuration - update this to your API endpoint
+        const API_URL = 'http://localhost:5000/script';
+
+        analyzeBtn.addEventListener('click', analyzeScript);
+        clearBtn.addEventListener('click', clearAll);
+
+        // Allow Ctrl+Enter to execute
+        sqlInput.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                analyzeScript();
+            }
+        });
+
+        function clearAll() {
+            sqlInput.value = '';
+            hideResults();
+            hideError();
+        }
+
+        function showLoading() {
+            loading.classList.add('show');
+            analyzeBtn.disabled = true;
+        }
+
+        function hideLoading() {
+            loading.classList.remove('show');
+            analyzeBtn.disabled = false;
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.add('show');
+        }
+
+        function hideError() {
+            errorMessage.classList.remove('show');
+        }
+
+        function showResults() {
+            results.classList.add('show');
+        }
+
+        function hideResults() {
+            results.classList.remove('show');
+        }
+
+        async function analyzeScript() {
+            const script = sqlInput.value.trim();
+            
+            if (!script) {
+                showError('Please enter a SQL script to execute');
+                return;
+            }
+
+            hideError();
+            hideResults();
+            showLoading();
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    },
+                    body: script
+                });
+
+                const data = await response.json();
+
+                if (!data.success) {
+                    showError(data.errorMessage || 'Script execution failed');
+                    return;
+                }
+
+                displayResults(data);
+
+            } catch (error) {
+                showError(`Error: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function displayResults(data) {
+            executionTime.textContent = data.executionTimeMs || '-';
+            comparisons.innerHTML = '';
+
+            if (!data.tableComparisons || data.tableComparisons.length === 0) {
+                comparisons.innerHTML = '<div class="empty-state">No table changes detected</div>';
+                showResults();
+                return;
+            }
+
+            data.tableComparisons.forEach(table => {
+                const comparisonDiv = createTableComparison(table);
+                comparisons.appendChild(comparisonDiv);
+            });
+
+            showResults();
+        }
+
+        function createTableComparison(table) {
+            const div = document.createElement('div');
+            div.className = 'table-comparison';
+
+            const title = document.createElement('div');
+            title.className = 'table-title';
+            title.textContent = table.tableName;
+            div.appendChild(title);
+
+            const container = document.createElement('div');
+            container.className = 'comparison-container';
+
+            // Create Before section
+            const beforeSection = createDataSection('Before', table.before);
+            container.appendChild(beforeSection);
+
+            // Create After section
+            const afterSection = createDataSection('After', table.after);
+            container.appendChild(afterSection);
+
+            div.appendChild(container);
+
+            // Highlight differences
+            highlightDifferences(beforeSection, afterSection, table);
+
+            return div;
+        }
+
+        function createDataSection(label, resultSet) {
+            const section = document.createElement('div');
+            section.className = 'before-after-section';
+
+            const header = document.createElement('div');
+            header.className = `section-header ${label.toLowerCase()}-header`;
+            header.textContent = label;
+            section.appendChild(header);
+
+            if (!resultSet || !resultSet.rows || resultSet.rows.length === 0) {
+                const empty = document.createElement('div');
+                empty.style.padding = '20px';
+                empty.style.textAlign = 'center';
+                empty.style.color = '#7f8c8d';
+                empty.textContent = 'No data';
+                section.appendChild(empty);
+                return section;
+            }
+
+            const table = document.createElement('table');
+            table.className = 'data-table';
+
+            // Create header
+            const thead = document.createElement('thead');
+            const headerRow = document.createElement('tr');
+            resultSet.columns.forEach(col => {
+                const th = document.createElement('th');
+                th.textContent = col;
+                th.title = col; // Tooltip for long column names
+                headerRow.appendChild(th);
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            // Create body
+            const tbody = document.createElement('tbody');
+            resultSet.rows.forEach((row, rowIndex) => {
+                const tr = document.createElement('tr');
+                tr.dataset.rowIndex = rowIndex;
+                
+                resultSet.columns.forEach(col => {
+                    const td = document.createElement('td');
+                    td.dataset.column = col;
+                    const value = row[col];
+                    const displayValue = value !== null && value !== undefined ? value : 'NULL';
+                    td.textContent = displayValue;
+                    td.title = displayValue; // Tooltip for long values
+                    td.className = 'cell-unchanged';
+                    tr.appendChild(td);
+                });
+                
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+
+            section.appendChild(table);
+            
+            // Add scroll hint if table is wider than container
+            setTimeout(() => {
+                if (section.scrollWidth > section.clientWidth) {
+                    const hint = document.createElement('div');
+                    hint.className = 'scroll-hint';
+                    hint.textContent = 'Scroll horizontally to see more columns';
+                    section.appendChild(hint);
+                }
+            }, 100);
+            
+            return section;
+        }
+
+        function highlightDifferences(beforeSection, afterSection, tableData) {
+            const beforeRows = tableData.before?.rows || [];
+            const afterRows = tableData.after?.rows || [];
+            const columns = tableData.before?.columns || [];
+
+            // Create maps for quick lookup
+            const beforeMap = new Map();
+            const afterMap = new Map();
+
+            // Use ID or first column as key
+            const keyColumn = columns.find(col => col.toLowerCase() === 'id') || columns[0];
+
+            beforeRows.forEach((row, index) => {
+                const key = row[keyColumn];
+                beforeMap.set(key, { row, index });
+            });
+
+            afterRows.forEach((row, index) => {
+                const key = row[keyColumn];
+                afterMap.set(key, { row, index });
+            });
+
+            // Find and highlight differences
+            const beforeTable = beforeSection.querySelector('tbody');
+            const afterTable = afterSection.querySelector('tbody');
+
+            if (!beforeTable || !afterTable) return;
+
+            // Check removed rows (in before but not in after)
+            beforeMap.forEach((value, key) => {
+                if (!afterMap.has(key)) {
+                    const row = beforeTable.querySelector(`tr[data-row-index="${value.index}"]`);
+                    if (row) {
+                        row.classList.add('row-removed');
+                    }
+                }
+            });
+
+            // Check added rows and changed cells
+            afterMap.forEach((afterValue, key) => {
+                const afterRow = afterTable.querySelector(`tr[data-row-index="${afterValue.index}"]`);
+                
+                if (!beforeMap.has(key)) {
+                    // Row added
+                    if (afterRow) {
+                        afterRow.classList.add('row-added');
+                    }
+                } else {
+                    // Row exists in both, check for cell changes
+                    const beforeValue = beforeMap.get(key);
+                    const beforeRow = beforeTable.querySelector(`tr[data-row-index="${beforeValue.index}"]`);
+                    
+                    columns.forEach(col => {
+                        const beforeCell = beforeRow?.querySelector(`td[data-column="${col}"]`);
+                        const afterCell = afterRow?.querySelector(`td[data-column="${col}"]`);
+                        
+                        if (beforeCell && afterCell) {
+                            const beforeVal = beforeValue.row[col];
+                            const afterVal = afterValue.row[col];
+                            
+                            if (beforeVal !== afterVal) {
+                                beforeCell.classList.remove('cell-unchanged');
+                                beforeCell.classList.add('cell-changed');
+                                afterCell.classList.remove('cell-unchanged');
+                                afterCell.classList.add('cell-changed');
+                            }
+                        }
+                    });
+                }
+            });
+        }
+    </script>
+</body>
+</html>

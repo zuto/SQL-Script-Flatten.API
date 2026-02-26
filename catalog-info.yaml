@@ -1,0 +1,19 @@
+﻿apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: demo-api
+  description: A template to create dotnet applications
+  annotations:
+    github.com/project-slug: zuto/demo-api
+    gocd.org/pipelines: 'demo-api-build,demo-api-qa,demo-api-prod'
+  tags:
+    - dotnet8
+    - web-api
+    - ecs
+    - linux
+    - docker
+spec:
+  type: service
+  lifecycle: production
+  owner: customer
+  system: templates
