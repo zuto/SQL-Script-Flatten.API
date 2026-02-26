@@ -1,5 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net.Mime;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using API.Services;
 using Microsoft.AspNetCore.Mvc;
@@ -12,11 +15,13 @@ public class ScriptController : ControllerBase
 {
     private readonly IScriptService _service;
     private readonly ILogger<ScriptController> _logger;
+    private readonly TableCacheService _tableCacheService;
 
-    public ScriptController(IScriptService service, ILogger<ScriptController> logger)
+    public ScriptController(IScriptService service, ILogger<ScriptController> logger, TableCacheService tableCacheService)
     {
         _service = service;
         _logger = logger;
+        _tableCacheService = tableCacheService;
     }
 
     /// <summary>
@@ -70,7 +75,7 @@ public class ScriptController : ControllerBase
                 tableComparisons = result.ExecutionResult.TableComparisons
             });
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             _logger.LogError(ex, "Unexpected error processing script");
             
@@ -113,72 +118,79 @@ public class ScriptController : ControllerBase
             // For text endpoint, we need to generate and return the actual script text
             // Since the service doesn't return the script anymore, we need to regenerate it
             // This is less efficient but maintains backward compatibility
-            var flattenScript = GenerateFlattenedScript(script);
+            var flattenScript = await GenerateFlattenedScript(script);
             
             return Content(flattenScript, "text/plain");
         }
-        catch (System.Exception ex)
+        catch (Exception ex)
         {
             _logger.LogError(ex, "Error generating flattened script");
             return StatusCode(500, $"Error: {ex.Message}");
         }
     }
 
-    private string GenerateFlattenedScript(string script)
+    private async Task<string> GenerateFlattenedScript(string script)
     {
         // This duplicates some logic from ScriptService for backward compatibility
         // Ideally we'd refactor ScriptService to optionally return the script text
-        var flattenScript = "BEGIN TRANSACTION;" + System.Environment.NewLine;
+        var flattenScript = "BEGIN TRANSACTION;" + Environment.NewLine;
         
-        var tablesCalled = GetTablesCalled(script);
+        var tablesCalled = await GetTablesCalledAsync(script);
         flattenScript += CreateBeforeTables(tablesCalled);
-        flattenScript += script + System.Environment.NewLine;
+        flattenScript += script + Environment.NewLine;
         flattenScript += CreateComparison(tablesCalled);
         flattenScript += "ROLLBACK TRANSACTION;";
         
         return flattenScript;
     }
 
-    private string CreateComparison(System.Collections.Generic.Dictionary<string, string> tables)
+    private string CreateComparison(Dictionary<string, string> tables)
     {
         string comparison = "";
         foreach (var table in tables)
         {
-            comparison += $"SELECT * INTO {table.Value}Dif FROM {table.Key}{System.Environment.NewLine} EXCEPT {System.Environment.NewLine} SELECT * FROM {table.Value} {System.Environment.NewLine}";
+            comparison += $"SELECT * INTO {table.Value}Dif FROM {table.Key}{Environment.NewLine} EXCEPT {Environment.NewLine} SELECT * FROM {table.Value} {Environment.NewLine}";
             comparison += $" IF(SELECT COUNT(*) FROM {table.Value}Dif) > 0\n BEGIN \n";
-            comparison += $"SELECT * FROM {table.Value} WHERE [ID] IN (SELECT ID FROM {table.Value}Dif)" + System.Environment.NewLine;
-            comparison += $"SELECT * FROM {table.Value}Dif END" + System.Environment.NewLine + System.Environment.NewLine;
+            comparison += $"SELECT * FROM {table.Value} WHERE [ID] IN (SELECT ID FROM {table.Value}Dif)" + Environment.NewLine;
+            comparison += $"SELECT * FROM {table.Value}Dif END" + Environment.NewLine + Environment.NewLine;
         }
         return comparison;
     }
     
-    private string CreateBeforeTables(System.Collections.Generic.Dictionary<string, string> tables)
+    private string CreateBeforeTables(Dictionary<string, string> tables)
     {
         string beforeTables = "";
         foreach (var table in tables)
         {
-            beforeTables += $"SELECT * INTO {table.Value} FROM {table.Key};" + System.Environment.NewLine;
+            beforeTables += $"SELECT * INTO {table.Value} FROM {table.Key};" + Environment.NewLine;
         }
         return beforeTables;
     }
     
-    private System.Collections.Generic.Dictionary<string, string> GetTablesCalled(string script)
+    private async Task<Dictionary<string, string>> GetTablesCalledAsync(string script)
     {
-        var tablesCalled = new System.Collections.Generic.Dictionary<string, string>();
+        var tablesCalled = new Dictionary<string, string>();
+        
+        // Get all valid table names from cache
+        var validTableNames = await _tableCacheService.GetTableNamesAsync();
         
         var pattern = @"\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM)\s+((?:\[[^\]]+\]|\w+)(?:\.(?:\[[^\]]+\]|\w+))?)";
         
-        var matches = System.Text.RegularExpressions.Regex.Matches(script, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        var matches = Regex.Matches(script, pattern, RegexOptions.IgnoreCase);
 
         int i = 1;
-        foreach (System.Text.RegularExpressions.Match match in matches)
+        foreach (Match match in matches)
         {
             var tableCheckString = match.Groups[1].Value.Replace("[", "").Replace("]", "");
-            if (SQLScriptFlatten.API.DatabaseTables.Tables.Contains(tableCheckString))
+            
+            // Check against dynamically fetched table names
+            if (validTableNames.Contains(tableCheckString))
             {
                 string tableName = tableCheckString.ToUpper();
-                tablesCalled.TryAdd(tableName, "#temptable" + i);
-                i++;
+                if (tablesCalled.TryAdd(tableName, "#temptable" + i))
+                {
+                    i++;
+                }
             }
         }
         

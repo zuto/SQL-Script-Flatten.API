@@ -17,15 +17,18 @@ public class ScriptService : IScriptService
     private readonly IScriptRepository _repository;
     private readonly ILogger<ScriptService> _logger;
     private readonly ScriptExecutionOptions _options;
+    private readonly TableCacheService _tableCacheService;
 
     public ScriptService(
         IScriptRepository repository,
         ILogger<ScriptService> logger,
-        IOptions<ScriptExecutionOptions> options)
+        IOptions<ScriptExecutionOptions> options,
+        TableCacheService tableCacheService)
     {
         _repository = repository;
         _logger = logger;
         _options = options.Value;
+        _tableCacheService = tableCacheService;
     }
 
     public async Task<ScriptServiceResult> ScriptFlatten(string script, bool execute = true)
@@ -35,7 +38,7 @@ public class ScriptService : IScriptService
         // Generate flattened script with transaction logic
         var flattenScript = "BEGIN TRANSACTION;" + Environment.NewLine;
         
-        var tablesCalled = GetTablesCalled(script);
+        var tablesCalled = await GetTablesCalledAsync(script);
         _logger.LogInformation("Found {TableCount} unique tables in script", tablesCalled.Count);
         
         flattenScript += CreateBeforeTables(tablesCalled);
@@ -326,9 +329,12 @@ public class ScriptService : IScriptService
         return beforeTables;
     }
     
-    private Dictionary<string, string> GetTablesCalled(string script)
+    private async Task<Dictionary<string, string>> GetTablesCalledAsync(string script)
     {
         var tablesCalled = new Dictionary<string, string>();
+        
+        // Get all valid table names from cache
+        var validTableNames = await _tableCacheService.GetTableNamesAsync();
         
         var pattern = @"\b(?:FROM|JOIN|INTO|UPDATE|DELETE\s+FROM)\s+((?:\[[^\]]+\]|\w+)(?:\.(?:\[[^\]]+\]|\w+))?)";
         
@@ -338,7 +344,9 @@ public class ScriptService : IScriptService
         foreach (Match match in matches)
         {
             var tableCheckString = match.Groups[1].Value.Replace("[", "").Replace("]", "");
-            if (DatabaseTables.Tables.Contains(tableCheckString))
+            
+            // Check against dynamically fetched table names
+            if (validTableNames.Contains(tableCheckString))
             {
                 string tableName = tableCheckString.ToUpper();
                 // Only add if not already in dictionary

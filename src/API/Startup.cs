@@ -2,6 +2,7 @@ using System;
 using System.Data;
 using System.Text.Json.Nodes;
 using API.Models;
+using API.Services;
 using CorrelationId;
 using CorrelationId.DependencyInjection;
 using Data;
@@ -40,8 +41,12 @@ public class Startup
     {
         // Configure options
         services.Configure<ScriptExecutionOptions>(Configuration.GetSection("ScriptExecution"));
+        services.Configure<TableCacheOptions>(Configuration.GetSection("TableCache"));
         
         services.AddScoped<IDbConnectionFactory, DbConnectionFactory>();
+        
+        // Register TableCacheService as singleton for caching table names
+        services.AddSingleton<TableCacheService>();
 
         
         services.AddSingleton<AsyncRetryPolicy>(sp =>
