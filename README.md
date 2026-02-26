@@ -50,14 +50,6 @@ All changes are automatically rolled back - your database remains untouched.
 - **Response**: JSON with before/after table comparisons
 - **Behavior**: Automatic transaction rollback (no permanent changes)
 
-## Troubleshooting
-
-**Frontend can't connect to API:**
-- Verify the API is running in Rider
-- Check the API URL in `index.html` matches your API's port (default: `http://localhost:5000`)
-- Ensure CORS is enabled in `Startup.cs`
-
-**No results showing:**
-- Check browser console (F12) for errors
-- Verify your SQL script references tables that exist in the database
-- Ensure the database connection string is configured correctly
+## TODO
+- Set up docker
+- Set up Terraform
