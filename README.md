@@ -1,15 +1,63 @@
 ﻿# SQL-Script-Flatten.API
 [![dotnet](https://img.shields.io/static/v1?label=csharp&message=.NET8.0&color=green&style=plastic&logo=csharp)]()
-[![aws](https://img.shields.io/static/v1?label=Hosting&message=ecs&color=orange&style=plastic&logo=amazonaws)]()
-[![aws](https://img.shields.io/static/v1?label=Docker&message=Linux&color=green&style=plastic&logo=docker)]()
-[![logging](https://img.shields.io/static/v1?label=logging&message=elasticsearch&color=brown&style=plastic&logo=elasticsearch)]()
-
 ## Description
-.NET API for ...
 
-### Pipelines / Swagger
+A .NET API for safely testing SQL scripts against real databases. Scripts are executed within automatic transaction wrappers (`BEGIN TRANSACTION...ROLLBACK TRANSACTION`), allowing you to test against live data without making permanent changes.
 
-| Build                                                                                                                                                                                  | QA                                                                                                                                                                            | Prod                                                                                                                                                                                  |
-|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| [![build](https://img.shields.io/static/v1?label=pipeline&message=build&color=blue&style=plastic&logo=gocd)](https://go-server.build.zuto.cloud/go/pipeline/activity/demo-api-build) | [![qa](https://img.shields.io/static/v1?label=pipeline&message=qa&color=blue&style=plastic&logo=gocd)](https://go-server.build.zuto.cloud/go/pipeline/activity/demo-api-qa) | [![prod](https://img.shields.io/static/v1?label=pipeline&message=prod&color=blue&style=plastic&logo=gocd)](<https://go-server.build.zuto.cloud/go/pipeline/activity/demo-api-prod>) |
-|                                                                                                                                                                                        | [![swaggerqa](https://img.shields.io/static/v1?label=swagger&message=qa&color=green&style=plastic&logo=swagger)](https://demo-api.qa.zuto.cloud/swagger/index.html)         | [![swaggerprod](https://img.shields.io/static/v1?label=swagger&message=prod&color=green&style=plastic&logo=swagger)](https://demo-api.prod.zuto.cloud/swagger/index.html)           |
+## Quick Start
+
+### 1. Run the API
+
+Open the project in JetBrains Rider and run it (or press F5).
+
+The API will typically start on `http://localhost:5000` or `https://localhost:5001`.
+
+### 2. Open the Frontend
+
+Open `index.html` in your web browser:
+- Double-click the file, or
+- Right-click → Open with → Your browser, or
+- Drag and drop into a browser window
+
+### 3. Test Your Scripts
+
+1. Paste your SQL script into the textarea
+2. Click "Analyze Script" (or press Ctrl+Enter)
+3. View the before/after comparison results
+4. Changes are highlighted:
+   - **Yellow** - Changed values
+   - **Green** - New rows
+   - **Red** - Removed rows
+
+## How It Works
+
+When you submit a SQL script through the frontend:
+
+1. The API wraps your script in a transaction
+2. Captures the "before" state of affected tables
+3. Executes your script
+4. Captures the "after" state
+5. Rolls back the transaction (nothing is saved)
+6. Returns a detailed comparison showing what would have changed
+
+All changes are automatically rolled back - your database remains untouched.
+
+## API Endpoint
+
+**POST** `/script`
+- **Content-Type**: `text/plain`
+- **Body**: Raw SQL script
+- **Response**: JSON with before/after table comparisons
+- **Behavior**: Automatic transaction rollback (no permanent changes)
+
+## Troubleshooting
+
+**Frontend can't connect to API:**
+- Verify the API is running in Rider
+- Check the API URL in `index.html` matches your API's port (default: `http://localhost:5000`)
+- Ensure CORS is enabled in `Startup.cs`
+
+**No results showing:**
+- Check browser console (F12) for errors
+- Verify your SQL script references tables that exist in the database
+- Ensure the database connection string is configured correctly
